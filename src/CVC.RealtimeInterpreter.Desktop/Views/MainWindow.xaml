@@ -1,0 +1,292 @@
+<ui:FluentWindow
+    x:Class="CVC.RealtimeInterpreter.Desktop.Views.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="CVC-RealtimeInterpreter"
+    Width="1280"
+    Height="850"
+    MinWidth="900"
+    MinHeight="620"
+    WindowStartupLocation="CenterScreen"
+    Background="{DynamicResource ApplicationBackgroundBrush}"
+    Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+    FontFamily="Segoe UI">
+    <Window.Resources>
+        <Style
+            TargetType="TextBlock">
+            <Setter
+                Property="TextWrapping"
+                Value="Wrap" />
+        </Style>
+        <Style
+            TargetType="Button">
+            <Setter
+                Property="Padding"
+                Value="16,8" />
+            <Setter
+                Property="Margin"
+                Value="0,0,8,0" />
+        </Style>
+        <Style
+            TargetType="ComboBox">
+            <Setter
+                Property="MinWidth"
+                Value="200" />
+            <Setter
+                Property="HorizontalAlignment"
+                Value="Left" />
+            <Setter
+                Property="Margin"
+                Value="0,8,0,20" />
+        </Style>
+    </Window.Resources>
+    <DockPanel
+        Margin="24">
+        <StackPanel
+            DockPanel.Dock="Top">
+            <TextBlock
+                Text="CVC-RealtimeInterpreter"
+                FontSize="26"
+                FontWeight="SemiBold" />
+            <Border
+                Margin="0,16,0,16"
+                Padding="14"
+                CornerRadius="6"
+                Background="{DynamicResource PreviewBackground}">
+                <TextBlock
+                    Text="{Binding PreviewNotice}" />
+            </Border>
+            <TextBlock
+                Text="{Binding SettingsStatus}"
+                Foreground="{DynamicResource WarningForeground}"
+                Margin="0,0,0,8"
+                AutomationProperties.LiveSetting="Assertive" />
+        </StackPanel>
+        <TabControl>
+            <TabItem
+                Header="{Binding LiveTitle}">
+                <DockPanel
+                    Margin="16">
+                    <StackPanel
+                        DockPanel.Dock="Top">
+                        <WrapPanel
+                            Margin="0,0,0,12">
+                            <TextBlock
+                                Text="{Binding ModeLabel}"
+                                Margin="0,8,16,0" />
+                            <RadioButton
+                                Content="{Binding StageOneLabel}"
+                                GroupName="SessionMode"
+                                Margin="0,8,24,0" />
+                            <RadioButton
+                                Content="{Binding StageTwoLabel}"
+                                GroupName="SessionMode"
+                                Margin="0,8,24,0" />
+                            <Button
+                                Content="{Binding StartLabel}"
+                                IsEnabled="False" />
+                            <Button
+                                Content="{Binding StopLabel}"
+                                IsEnabled="False" />
+                        </WrapPanel>
+                        <WrapPanel
+                            Margin="0,0,0,16">
+                            <Button
+                                Content="{Binding PreviewButton}"
+                                Command="{Binding LoadPreviewCommand}" />
+                            <Button
+                                Content="{Binding ClearButton}"
+                                Command="{Binding ClearPreviewCommand}" />
+                            <Button
+                                Content="{Binding ReturnToLiveLabel}"
+                                Click="ReturnToLive_Click" />
+                        </WrapPanel>
+                    </StackPanel>
+                    <Grid
+                        DockPanel.Dock="Top"
+                        Margin="16,0,16,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition
+                                Width="*" />
+                            <ColumnDefinition
+                                Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock
+                            Text="中文 · 繁體"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            Grid.Column="1"
+                            Text="English"
+                            Margin="16,0,0,0"
+                            FontWeight="SemiBold" />
+                    </Grid>
+                    <TextBlock
+                        DockPanel.Dock="Bottom"
+                        Text="{Binding EmptyNotice}"
+                        Margin="0,12,0,0"
+                        Opacity="0.7" />
+                    <ScrollViewer
+                        x:Name="TranscriptScroller"
+                        VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl
+                            ItemsSource="{Binding Segments}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border
+                                        Padding="16"
+                                        Margin="0,0,0,12"
+                                        CornerRadius="6">
+                                        <Border.Style>
+                                            <Style
+                                                TargetType="Border">
+                                                <Setter
+                                                    Property="Background"
+                                                    Value="Transparent" />
+                                                <Style.Triggers>
+                                                    <DataTrigger
+                                                        Binding="{Binding IsCurrent}"
+                                                        Value="True">
+                                                        <Setter
+                                                            Property="Background"
+                                                            Value="{DynamicResource CurrentSentenceBackground}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition
+                                                    Width="*" />
+                                                <ColumnDefinition
+                                                    Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock
+                                                Text="{Binding Mandarin}"
+                                                Margin="0,0,16,0"
+                                                FontSize="{Binding DataContext.TranscriptFontSize, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                <TextBlock.Style>
+                                                    <Style
+                                                        TargetType="TextBlock">
+                                                        <Setter
+                                                            Property="TextWrapping"
+                                                            Value="Wrap" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger
+                                                                Binding="{Binding MandarinLowConfidence}"
+                                                                Value="True">
+                                                                <Setter
+                                                                    Property="Foreground"
+                                                                    Value="{DynamicResource WarningForeground}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                Text="{Binding English}"
+                                                Margin="16,0,0,0"
+                                                FontSize="{Binding DataContext.TranscriptFontSize, RelativeSource={RelativeSource AncestorType=Window}}">
+                                                <TextBlock.Style>
+                                                    <Style
+                                                        TargetType="TextBlock">
+                                                        <Setter
+                                                            Property="TextWrapping"
+                                                            Value="Wrap" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger
+                                                                Binding="{Binding EnglishLowConfidence}"
+                                                                Value="True">
+                                                                <Setter
+                                                                    Property="Foreground"
+                                                                    Value="{DynamicResource WarningForeground}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+            <TabItem
+                Header="{Binding SettingsTitle}">
+                <ScrollViewer
+                    VerticalScrollBarVisibility="Auto">
+                    <StackPanel
+                        Margin="24"
+                        MaxWidth="760"
+                        HorizontalAlignment="Left">
+                        <TextBlock
+                            Text="{Binding SaveNotice}"
+                            Margin="0,0,0,24" />
+                        <TextBlock
+                            Text="{Binding ThemeLabel}"
+                            FontWeight="SemiBold" />
+                        <ComboBox
+                            ItemsSource="{Binding ThemeOptions}"
+                            DisplayMemberPath="Label"
+                            SelectedValuePath="Value"
+                            SelectedValue="{Binding Theme}" />
+                        <TextBlock
+                            Text="{Binding LanguageLabel}"
+                            FontWeight="SemiBold" />
+                        <ComboBox
+                            ItemsSource="{Binding LanguageOptions}"
+                            DisplayMemberPath="Label"
+                            SelectedValuePath="Value"
+                            SelectedValue="{Binding Language}" />
+                        <TextBlock
+                            Text="{Binding TextSizeLabel}"
+                            FontWeight="SemiBold" />
+                        <Slider
+                            Width="320"
+                            HorizontalAlignment="Left"
+                            Minimum="14"
+                            Maximum="48"
+                            TickFrequency="1"
+                            IsSnapToTickEnabled="True"
+                            Value="{Binding TranscriptFontSize}"
+                            Margin="0,12,0,4" />
+                        <TextBlock
+                            Text="{Binding TranscriptFontSize, StringFormat={}{0:0} px}"
+                            Margin="0,0,0,20" />
+                        <TextBlock
+                            Text="{Binding VoiceLabel}"
+                            FontWeight="SemiBold" />
+                        <ComboBox
+                            ItemsSource="{Binding VoiceOptions}"
+                            DisplayMemberPath="Label"
+                            SelectedValuePath="Value"
+                            SelectedValue="{Binding Voice}" />
+                        <TextBlock
+                            Text="{Binding StaleLabel}"
+                            FontWeight="SemiBold" />
+                        <ui:NumberBox
+                            Width="200"
+                            HorizontalAlignment="Left"
+                            Minimum="1"
+                            Maximum="300"
+                            Value="{Binding StaleAudioSeconds}"
+                            Margin="0,8,0,24" />
+                        <TextBlock
+                            Text="{Binding StorageLabel}"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            Text="{Binding DataDirectory}"
+                            Margin="0,8,0,24" />
+                        <TextBlock
+                            Text="{Binding ProviderNotice}"
+                            Opacity="0.7" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</ui:FluentWindow>

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CVC.RealtimeInterpreter.Core/CVC.RealtimeInterpreter.Core.csproj" />
+    <Project Path="src/CVC.RealtimeInterpreter.Desktop/CVC.RealtimeInterpreter.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CVC.RealtimeInterpreter.Core.Tests/CVC.RealtimeInterpreter.Core.Tests.csproj" />
+  </Folder>
+</Solution>
