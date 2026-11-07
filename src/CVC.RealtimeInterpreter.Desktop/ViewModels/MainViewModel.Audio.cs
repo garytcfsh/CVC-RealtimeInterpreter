@@ -247,6 +247,7 @@ public partial class MainViewModel
             }
         }
 
+        await Providers.ShutdownAsync();
         await FlushSettingsAsync();
     }
 }

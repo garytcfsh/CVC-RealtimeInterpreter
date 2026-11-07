@@ -10,7 +10,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        if (e.Args.Length > 0 && e.Args[0] is "--render-preview" or "--inspect-audio-inputs")
+        if (e.Args.Length > 0 && e.Args[0] is "--render-preview" or "--inspect-audio-inputs" or "--check-credential-store")
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
@@ -26,9 +26,13 @@ public partial class App : Application
                 {
                     await PreviewRenderer.ExportAsync(e.Args[1]);
                 }
-                else
+                else if (e.Args[0] == "--inspect-audio-inputs")
                 {
                     await AudioInputDiagnostics.ExportDevicesAsync(e.Args[1]);
+                }
+                else
+                {
+                    await ProviderCredentialDiagnostics.VerifyAsync(e.Args[1]);
                 }
                 Shutdown(0);
             }

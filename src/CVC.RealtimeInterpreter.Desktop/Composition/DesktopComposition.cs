@@ -22,17 +22,18 @@ internal static class DesktopComposition
         {
             settings = await store.LoadAsync();
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
         {
             loadError = "Settings could not be loaded. Defaults are shown; the original file has not been changed. " +
                 exception.Message;
         }
 
         AudioInputController audioInput = new(new WindowsAudioInputBackend(), settings.AudioInputDeviceId);
-        MainViewModel viewModel = new(settings, store, locations, loadError, audioInput);
+        MainViewModel viewModel = new(settings, store, locations, loadError, audioInput, new WindowsProviderCredentialStore());
         MainWindow window = new(viewModel, new DesktopPageProvider(viewModel));
         application.MainWindow = window;
         window.Show();
+        await viewModel.Providers.InitializeCredentialsAsync();
         await audioInput.RefreshAsync();
     }
 }

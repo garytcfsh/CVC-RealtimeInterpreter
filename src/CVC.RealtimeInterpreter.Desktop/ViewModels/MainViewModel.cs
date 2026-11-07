@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using CVC.RealtimeInterpreter.Core.Configuration;
 using CVC.RealtimeInterpreter.Core.Audio;
 using CVC.RealtimeInterpreter.Core.Transcripts;
+using CVC.RealtimeInterpreter.Core.Providers;
 
 namespace CVC.RealtimeInterpreter.Desktop.ViewModels;
 
@@ -18,7 +19,7 @@ public partial class MainViewModel : ObservableObject
     private bool savePending;
 
     public MainViewModel(AppSettings settings, ISettingsStore settingsStore, IStorageLocations locations, string? error,
-        AudioInputController? audioInput = null)
+        AudioInputController? audioInput = null, IProviderCredentialStore? credentials = null)
     {
         this.settings = settings;
         this.settingsStore = settingsStore;
@@ -31,6 +32,20 @@ public partial class MainViewModel : ObservableObject
         settingsStatus = error ?? string.Empty;
         RefreshOptionLabels();
         InitializeAudio(audioInput);
+        Providers = new(settings.Providers ?? ProviderCatalog.CreateDefaults(), credentials ?? new UnavailableCredentialStore(),
+            configuration =>
+            {
+                this.settings = this.settings with
+                {
+                    Providers = configuration
+                };
+                UpdateSettings();
+            }, UseChinese);
+    }
+
+    public ProviderSettingsViewModel Providers
+    {
+        get;
     }
 
     public ObservableCollection<TranscriptSegment> Segments { get; } = [];
@@ -124,8 +139,8 @@ public partial class MainViewModel : ObservableObject
     public string StaleLabel => UseChinese ? "過期語音門檻（秒）" : "Stale audio threshold (seconds)";
     public string StorageLabel => UseChinese ? "資料儲存位置" : "Data location";
     public string ProviderNotice => UseChinese
-        ? "AI 供應商、音訊輸出與全域快捷鍵將於後續整合。此處不會儲存 API 金鑰。"
-        : "Provider, audio output, and global shortcut integration are pending. No API key is stored here.";
+        ? "可設定供應商及模型；即時 AI 服務尚未連接，不會傳送請求或產生費用。"
+        : "Configure providers and models here. Live AI services are not connected yet; no requests or charges are generated.";
     public string SaveNotice => UseChinese ? "設定會自動儲存。" : "Settings save automatically.";
     public string EmptyNotice => audioSnapshot.State == AudioInputState.Capturing
         ? UseChinese ? "音訊擷取中；轉錄功能尚未連接。" : "Audio capture is active; transcription is not connected yet."
@@ -140,6 +155,7 @@ public partial class MainViewModel : ObservableObject
     {
         RefreshOptionLabels();
         RefreshAudioLabels();
+        Providers.SetLanguage(UseChinese);
 
         foreach (string name in new[]
         {
@@ -256,5 +272,13 @@ public partial class MainViewModel : ObservableObject
     private void ClearPreview()
     {
         Segments.Clear();
+    }
+
+    private sealed class UnavailableCredentialStore : IProviderCredentialStore
+    {
+        public Task<bool> HasKeyAsync(Guid providerId) => Task.FromResult(false);
+        public Task<string?> ReadKeyAsync(Guid providerId) => Task.FromResult<string?>(null);
+        public Task WriteKeyAsync(Guid providerId, string key) => Task.FromException(new IOException("Credential storage is not connected."));
+        public Task DeleteKeyAsync(Guid providerId) => Task.FromException(new IOException("Credential storage is not connected."));
     }
 }

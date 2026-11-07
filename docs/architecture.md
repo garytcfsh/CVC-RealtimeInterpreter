@@ -113,9 +113,38 @@ The following interface names are illustrative; finalize signatures during imple
 | Records | `ISessionStore`, `ITranscriptExporter` | Recovery persistence and independent format exports |
 | Platform | `ICredentialStore`, `IGlobalShortcutService`, `IStorageLocations` | OS-specific credentials, shortcuts, and directories |
 
-One supported AI provider is sufficient initially, but recognition, translation, and synthesis remain separate contracts. Provider adapters translate SDK results/errors into application-owned models. Replacing a provider should not require rewriting views, records, or queue policy.
+Recognition, translation, and synthesis remain separate contracts and independently select providers. The same provider can serve multiple roles, but no shared provider is required. Provider adapters translate SDK results/errors into application-owned models. Replacing a provider should not require rewriting views, records, or queue policy.
 
-Use capability information where providers differ, especially for confidence and partial updates. Do not invent confidence values or treat recognition confidence as proof of translation accuracy.
+Input recognition must handle predominantly Mandarin with occasional English words while preserving the source wording and the Traditional Chinese display requirement. General multilingual recognition is not an agreed requirement.
+
+Confidence reporting is optional, including any associated highlighting. A provider without confidence remains eligible; unknown confidence must remain distinct from high or low confidence, and must not block processing or exports. Do not invent confidence values or treat recognition confidence as proof of translation accuracy. Conservative Scripture matching is a separate policy and still falls back to normal translation for uncertain matches.
+
+## Provider Configuration and Service Assignments — Specification
+
+Provider configuration, independent assignments, validation, and secure credential storage are implemented. Live AI calls and runtime adapter creation remain pending.
+
+- Include built-in providers and allow users to add providers in settings.
+- Associate providers with capability tags, including STT, translation, and speech generation as applicable.
+- Settings → AI contains WPF-UI tabs for Service assignments and Provider connections. Each service independently selects a provider and model; connection credentials are shared when roles reuse a profile.
+- Keep provider configuration, capability metadata, and role assignment separate from WPF views and provider SDK objects. Desktop presents and edits configuration; Core validates and resolves profile/model choices. Binding those choices to live service implementations is the next integration step.
+- Store provider credentials through the credential abstraction rather than exportable configuration. Configuration transfer includes non-secret provider settings and assignments; handling unsupported/missing adapters on the destination remains open.
+
+### Confirmed Modeling and Current Implementation
+
+Separate a connection/API type, saved connection profile, and role assignment. `ProviderConfiguration`, `ProviderProfile`, `ProviderModel`, and `ServiceAssignment` live in portable Core. Stable profile GUIDs keep renaming and localization from changing assignments. Multiple profiles can use the same connection type. Capability tags aggregate the profile's models; selectors filter by the requested role, and STT additionally requires streaming/live results.
+
+Built-in configuration templates are OpenAI and Azure Speech; user-added profiles can choose OpenAI, Azure Speech, or OpenAI-compatible formats. No role is assigned by default. Known model capability metadata is constrained by the catalog; custom model capabilities are explicitly user-declared and unverified. Azure identifiers `standard-realtime` and `neural-tts` represent service-default families rather than deployment names. Catalog examples are configuration aids, not selected providers or proven church-speech quality. Model/workflow references: [OpenAI realtime STT](https://developers.openai.com/api/docs/models/gpt-live-transcribe), [GPT-4.1](https://developers.openai.com/api/docs/models/gpt-4.1), [speech-generation workflow](https://developers.openai.com/api/docs/guides/text-to-speech), and [Azure Speech SDK](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-sdk).
+
+Settings automatically save valid edits; incomplete new profiles can have a blank endpoint and unselected model. Core rejects incompatible, duplicate, or dangling assignments. Removing an assigned provider/model requires clearing its assignments first. Endpoints use HTTPS or loopback HTTP and cannot contain embedded credentials, query parameters, or fragments. Supported connection formats are the confirmed initial scope; loadable plugins are deferred.
+
+`WindowsProviderCredentialStore` implements `IProviderCredentialStore` using Windows Credential Manager. Keys are scoped to the signed-in Windows user and profile GUID, separate from shared ProgramData settings. Password input is debounced per profile, errors are shown, and pending writes are awaited on close. Switching providers clears the secret editor without reading saved keys back into the UI. Removing a key is explicit; deleting a removable profile deletes its current user's key. Other Windows users' credentials are not managed by this profile deletion. See the [Credential Manager API](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritew).
+
+### Open Provider Design Questions
+
+- Live adapter implementation, API compatibility, account/model availability, church-speech quality, and additional provider templates.
+- Additional authentication fields, model discovery, and verification of custom-model capability declarations.
+- Changing assignments during future AI sessions and importing unavailable adapters. Current capture-only sessions do not use these assignments.
+- Stage-specific credential validation, role-specific retry/recovery, and whether any automatic provider fallback is desired.
 
 ## Session Ownership and Data Flow
 
@@ -153,7 +182,7 @@ Retain unsaved finalized text in memory according to product requirements. Bound
 - Resolve the Windows data directory to `ProgramData/CVC-RealtimeInterpreter`; validate required permissions during implementation.
 - Version settings and recovery schemas so later updates can migrate existing data.
 - Save settings automatically using a strategy that avoids partially written configuration files.
-- Store the API key through the credential abstraction. Exclude it from settings exports, recovery records, and diagnostic logs.
+- Store each provider's credentials through the credential abstraction. Exclude them from settings exports, recovery records, and diagnostic logs.
 - Validate configuration imports before applying them, including device availability and shortcut conflicts.
 
 ## Coding Style
@@ -194,4 +223,4 @@ Pin stable package versions. Record formatting rules in tooling configuration wh
 
 Test Core independently using fake audio/provider/platform services. Prioritize sentence identity/order, mute/resume races, stale queues, partial failures, Stop timeout, recovery, and independent exports. Use controlled clocks for timing tests. Add Windows integration checks for actual capture, device loss, and shortcuts.
 
-Provider selection, browser capture mechanics, Scripture access, recovery storage format, exact build targets, and deployment remain technical-validation decisions. This document prepares replacement boundaries without claiming these capabilities have already been proven.
+Provider adapters/profile configuration, capability verification, role assignments, browser capture mechanics, Scripture access, recovery storage format, exact build targets, and deployment remain technical-validation decisions. Future provider tests must include independent role resolution, mismatched capabilities, optional/missing confidence, Mandarin with English words, and missing credentials/imported adapters. This document prepares replacement boundaries without claiming these capabilities have already been proven.

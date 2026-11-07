@@ -10,7 +10,11 @@ The foundation provides two production projects, a WPF-UI Gallery-style shell wi
 
 Home's input meter measures samples received by this app. After selecting the mixer input and pressing Start, speak into the mixer microphone: the bar should move with the signal and fall during silence. The status distinguishes **Receiving audio · signal detected**, **Receiving audio · silence**, and **No audio received**. Packet arrival expires after one second without data; Stop, input changes, and device loss clear the meter. A moving bar confirms signal, not speech intelligibility or translation quality. No audio is recorded or uploaded.
 
-Sample text is synthetic and is cleared when Start is pressed. There are no AI requests, speech playback, Chrome capture, Scripture matching, transcript persistence/exports, global shortcuts, or configuration import/export yet. Stage 2 is unavailable. Voice and stale-threshold controls currently save preferences only. No API keys are requested or stored. The capture-only Start behavior is temporary; the interpretation pipeline will require valid provider credentials.
+Sample text is synthetic and is cleared when Start is pressed. There are no AI requests, speech playback, Chrome capture, Scripture matching, transcript persistence/exports, global shortcuts, or configuration import/export yet. Stage 2 is unavailable. Voice and stale-threshold controls currently save preferences only. Provider keys can be stored securely but are not used for network requests yet. The capture-only Start behavior is temporary; the interpretation pipeline will require valid provider credentials.
+
+Settings → AI now has **Service assignments** and **Provider connections** tabs. OpenAI and Azure Speech templates are included; additional named connections can use OpenAI, Azure Speech, or OpenAI-compatible formats. Add model identifiers/capabilities and select a provider/model independently for STT, translation, and speech generation. No services are assigned by default. Tags and selector filtering describe configured capabilities; custom models are user-declared and unverified. Clear assignments before deleting a referenced provider/model. Configuration saves automatically; API keys save separately in Windows Credential Manager for the current user. Editing a key replaces it; use Remove key to delete it. Actual service connections, model discovery, and account validation are still pending.
+
+Input is predominantly Mandarin with occasional English words. Confidence reporting/highlighting is an optional enhancement, not a provider requirement. Supported connection formats are the initial extensibility scope; provider plugins are deferred. See `docs/product-discovery.md` for confirmed decisions and open setup details.
 
 ## Structure
 
@@ -62,6 +66,12 @@ dotnet run --project src/CVC.RealtimeInterpreter.Desktop -- --render-preview art
 
 The renderer uses synthetic text, fake audio devices, and an in-memory settings store. It does not read or change user settings, capture real audio, or call AI services. It renders Light/Dark Home, General, and AI views at 900×620 and 1280×850, Traditional Chinese examples, collapsed-sidebar examples, and capturing/disconnected/access-denied states. An invisible WPF presentation source initializes normal control lifecycles before direct PNG rendering. Regression checks exercise navigation, language switching, preserved preferences/device selection, and fake capture controls across input changes and disconnects. PNGs stay under ignored `artifacts/`.
 
+Provider previews use synthetic assignments and an in-memory credential store. UI checks cover independent role selection, localization, custom models, protected deletion, password editing, credential failures, and exclusion of secrets from settings. A separate native storage check uses one temporary synthetic credential, verifies create/update/read/delete, and removes it in cleanup without reading existing provider keys:
+
+```powershell
+dotnet run --project src/CVC.RealtimeInterpreter.Desktop -- --check-credential-store artifacts/credential-check.json
+```
+
 These previews check client layout and visual states; actual window dragging, resizing, minimize/maximize, and close behavior still require runtime checks. Normal startup fits the initial window dimensions to the Windows work area.
 
 ## Settings
@@ -72,4 +82,4 @@ A missing file uses defaults without creating a file. An invalid file produces a
 
 ## Next integration work
 
-Validate mixer capture with the church's actual audio interface, select and validate the AI provider, then connect transcription and translation. Browser capture, output/playback policy, recovery, exports, and Scripture workflow follow. Preserve the service boundaries and coding style in `docs/architecture.md`.
+Validate mixer capture with the church's actual audio interface and connect live STT/translation adapters to the configured profile/model assignments. Evaluate each service on representative church speech, including Mandarin with English words. Speech generation/playback, browser capture, recovery, exports, and Scripture workflow follow. Preserve the service boundaries and coding style in `docs/architecture.md`.

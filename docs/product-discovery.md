@@ -14,9 +14,13 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 
 - Product: **CVC-RealtimeInterpreter**, supporting **Windows 11**.
 - The app handles capture, display, playback controls, settings, and records. External AI accessed with a user-supplied API key provides transcription, translation, and speech generation.
-- Initially support **one provider** for all three functions. Provider selection remains open.
+- STT, translation, and speech generation have **independent provider selections**. They may use the same provider or different providers; one provider is no longer required to handle all three.
+- The app includes built-in providers. Settings also provides a place to **add providers**, with capability **tags** identifying the functions each provider supports, including STT, translation, and speech generation.
+- A separate area in settings assigns a provider to each of the three functions. Specific built-in providers, defaults, and details of user-added connections remain open.
+- Start with **supported API/connection formats**; installing provider plugins is deferred. A saved connection contains its name, connection type, endpoint, and separately secured credentials. Each service selects a **provider and model**, and one connection can be reused across services without duplicating credentials.
+- Capability tags reflect the connection type and its models rather than unrestricted provider-level labels. Validate provider/model compatibility when assigning services. Confidence remains optional.
 - Cloud processing is acceptable, subject to selecting privacy terms the church accepts. Internet at church is reliable.
-- Remember the API key securely on the computer; exclude it from configuration exports.
+- Remember provider API keys securely on the computer; exclude them from configuration exports.
 - Expected usage: 10 sessions × 90 minutes, approximately **900 minutes/month**. The previous **TWD 600 monthly budget is withdrawn**; no replacement limit is set.
 
 ### Stages and Session Control
@@ -25,7 +29,7 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 - **Stage 2:** Retain the display and send synthesized English into the existing interpretation audio system alongside the human microphone; listeners keep the same headsets.
 - Stage 1 remains available after Stage 2 arrives. Users explicitly choose the mode each session.
 - Manual **Start/Stop** controls. Stage 2 audio begins automatically when finalized translations are ready.
-- Cover announcements, prayers, Scripture readings, testimonies, and sermons. Input is Mandarin only.
+- Cover announcements, prayers, Scripture readings, testimonies, and sermons. Speech is **predominantly Mandarin, with occasional English words within Mandarin speech**. Preserve those words in the source transcript; general multilingual services or full English sermons have not been requested.
 - Prioritize the main speaker during overlapping speech rather than attempt to transcribe every voice.
 
 ### Audio Devices
@@ -45,7 +49,8 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 - Two columns align **each Mandarin sentence with its English translation**, leaving vertical space between sentence pairs.
 - Mandarin uses **Traditional Chinese**. Normal English uses **American English** spelling and wording; NIV quotations retain official wording.
 - Continuously scrolling history, manual review, and **Return to live**.
-- Current sentence: **background highlight**. Low-confidence Mandarin and English: different **text color**, visible together with the highlight.
+- Current sentence: **background highlight**.
+- **Confidence is an optional enhancement**, not a required feature or a condition for selecting/using a provider. Transcription and translation must work without confidence scores. If confidence-based marking is implemented and usable confidence information is available, mark affected Mandarin/English with a different **text color**, visible together with the current-line highlight. Do not invent scores or treat unavailable confidence as evidence of high or low confidence.
 - Sentence-sized segments. Show partial segments early with an **ellipsis only**, then replace them with finalized versions.
 - Display target: within **8 seconds from the end of a short spoken phrase**, both Mandarin and English appear. Partial text counts. Long continuous sentences update progressively.
 - Approximately **90% of normal content should be readable aloud without correction**. Detailed evaluation criteria are deferred; this goal is not yet validated.
@@ -69,6 +74,7 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 - Pre-service form: optional sermon topic and list of Bible references, e.g. `John 3:16–21`. Pasted Scripture text is not required.
 - Match the **original Chinese Union Version (和合本)**, not its revised version.
 - Automatically identify readings among pre-entered passages. Use official **NIV** on screen and in speech only for high-confidence matches.
+- This conservative Scripture-matching rule is separate from optional STT/translation confidence reporting; making provider confidence optional does not permit uncertain passage substitution.
 - Automatically use normal translation for paraphrase, commentary, uncertain/incorrect matching, or passages not pre-entered. No whole-Bible identification or manual passage-selection fallback.
 - No initial custom terminology/names list or first-service transcript-review/notes workflow.
 
@@ -77,8 +83,9 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 - English and Traditional Chinese interface options. Default follows Windows: either Chinese variant selects Traditional Chinese; unsupported languages fall back to English.
 - Themes: **System / Dark / Light**, default **System**.
 - Save settings automatically.
+- Settings includes provider management (built-in and user-added providers with capability tags) and a separate service-assignment area for STT, translation, and speech generation. Exact page layout remains unspecified.
 - Active configuration lives under `C:\ProgramData\CVC-RealtimeInterpreter`.
-- Export/import all user-adjustable settings, including theme, locale, text size, devices, voice, shortcut, and stale threshold. Exclude API keys and service records.
+- Export/import all user-adjustable settings, including theme, locale, text size, devices, voice, shortcut, stale threshold, non-secret provider configuration, and service assignments. Exclude API keys and service records. Details of transferring provider configurations and resolving missing implementations remain open.
 - Check imported device and shortcut availability on the destination computer; require reselection where necessary.
 
 ### Records and Exports — Both Stages
@@ -88,8 +95,8 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 - Date/time filenames; exact syntax remains unspecified.
 - Stop automatically produces **Word, plain-text, and HTML** files. Word was originally the priority; all three are now required.
 - Content consists only of transcript/translation pairs: no date/topic header or segment timestamps.
-- Word/HTML use two sentence-aligned columns and a fixed printer-friendly light appearance. Preserve low-confidence text-color markings.
-- Plain text: Mandarin followed by English, blank line between pairs, and `[Low confidence]` before affected segments.
+- Word/HTML use two sentence-aligned columns and a fixed printer-friendly light appearance. Preserve low-confidence text-color markings if the optional marking feature supplies them.
+- Plain text: Mandarin followed by English, blank line between pairs, and `[Low confidence]` before affected segments if optional confidence marking is available. Missing confidence must not prevent saving or exporting.
 - Preserve Mandarin-only segments with an **English translation unavailable** marker when translation failed.
 - No in-app record browser or deletion; manage records through File Explorer.
 
@@ -109,22 +116,27 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 - Discard outage speech; no audio buffer/backlog recovery. Resume live transcription/translation automatically, but keep AI audio muted until explicit resume.
 - Speech-generation failure: bilingual display continues; AI audio stays muted until user resumes.
 - Translation failure: Mandarin continues and affected English is marked unavailable. Recovery resumes new live content without retrying missed translations.
-- Missing/invalid API key blocks Start with corrective guidance.
+- Missing/invalid API keys for required selected services block Start with corrective guidance. Exact stage-specific validation with independent provider assignments remains to be specified.
 - Exhausted provider credit: preserve history, mute AI, alert, and wait for explicit **Retry** after resolution instead of repeated retries.
 
 ## 2. Proposed Recommendations — Not Yet Decisions
 
 - Obtain a clean, separate mixer feed without disturbing the interpreter's headset path.
-- Validate one provider on representative church speech for quality, latency, confidence signals, privacy, and operating cost before committing to it.
+- Validate candidate providers for each function on representative church speech for quality, latency, Mandarin with occasional English words, privacy, and operating cost. Treat confidence reporting as a bonus rather than a prerequisite.
+- Additional metadata such as confidence availability could help distinguish models; its presentation is not yet decided. Live STT must still support partial results regardless of optional confidence reporting.
+- Validate only the services required by the selected stage, keeping unused provider profiles from blocking a session. The exact behavior is not yet confirmed.
 - Confirm a permitted source and usage terms for official NIV text.
 - Evaluate the 90% usability goal with recordings and bilingual interpreter review; detailed scoring rules were explicitly deferred.
 
 ## 3. Open Questions and Technical Validation
 
 - **Hardware:** AUX availability, connectors, signal level, clean main-speaker mix, audio interface/adapter, and physical output routing alongside the human microphone.
-- **Provider:** Select the single supported provider and validate all three functions, privacy terms, credential storage, account setup, rate limits, and costs.
+- **Built-in providers:** Which providers/models ship initially, which capabilities they expose, and what defaults (if any) are selected for each function? Validate quality, privacy terms, credential storage, account setup, rate limits, and costs separately.
+- **Adding providers:** Supported connection types and compatible endpoints are the initial scope; plugins are deferred. Additional authentication schemes, model discovery, and provider-specific fields need validation as live adapters are integrated.
+- **Capability verification:** Built-in model metadata can constrain selections; custom-model capability declarations still need verification against the actual endpoint. Account availability is not established by a tag.
+- **Provider lifecycle:** Rules for editing/removing an assigned provider, changing assignments during a session, imported missing providers, stage-specific Start validation, and recovery when one service fails. Automatic provider fallback has not been agreed.
 - **Scripture:** Text access/usage rights; accurate original-CUV-to-NIV matching and transitions into commentary.
-- **Timing/confidence:** Phrase boundaries, segment finalization, low-confidence criteria and provider support, precise stale-age measurement, and queue behavior when no sufficiently recent sentence exists.
+- **Timing/optional confidence:** Phrase boundaries, segment finalization, precise stale-age measurement, and queue behavior when no sufficiently recent sentence exists. If optional confidence marking is added, establish meaningful criteria and provider support without making it a prerequisite.
 - **Capture:** Windows 11 browser-only capture and selection when several Chrome windows/tabs play audio; realistic main-speaker prioritization from the church feed.
 - **Persistence:** Internal recovery format, filename syntax/collisions, ProgramData permissions, and closing with unsaved text.
 - **Quality:** Detailed scoring and realistic speech-delay targets; verify the 8-second display target and 90% usability goal through testing.
@@ -134,7 +146,7 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 
 - A mixer AUX output is probably available; this has not been verified.
 - Pre-entered Bible references can be resolved to appropriate texts, subject to access, rights, and implementation validation.
-- Provider and capture capabilities can support the intended workflow; no feasibility prototype has established this yet.
+- Candidate AI providers can support the intended workflow; this remains unvalidated on church speech. Windows capture and a live input meter exist, but actual church mixer/driver validation remains outstanding.
 
 ## Trade-offs and Superseded Choices
 
@@ -144,6 +156,10 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 - Newest-sentence resume and live-only outage recovery intentionally omit older content to avoid accumulating delay.
 - Manual male/female voice selection replaces automatic speaker classification/switching. Individual imitation is a later-stage feature.
 - Sentence-pair alignment replaces the briefly discussed paragraph layout.
+- Predominantly Mandarin with occasional English words replaces the earlier Mandarin-only input description.
+- Independent service assignments, built-in providers, and user-added providers replace the earlier single-provider-for-all-functions restriction.
+- Supported connection formats first, with plugins deferred, is now confirmed. Provider/model selection is separate from shared connection credentials.
+- Provider confidence and low-confidence marking are optional bonuses, replacing their earlier required status. This does not change the conservative Scripture-matching rule.
 - The API-based product boundary does not remove cloud privacy, cost, or reliability dependencies. The TWD 600 budget was withdrawn.
 - Continuous saving protects records; continuing interpretation through disk failures prioritizes the live service while leaving unsaved memory at risk.
 - High-confidence NIV substitution reduces wrong-passage output but may miss correct readings; normal translation is the fallback.

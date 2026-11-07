@@ -11,6 +11,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using CVC.RealtimeInterpreter.Core.Configuration;
 using CVC.RealtimeInterpreter.Core.Audio;
+using CVC.RealtimeInterpreter.Core.Providers;
 using CVC.RealtimeInterpreter.Desktop.ViewModels;
 using CVC.RealtimeInterpreter.Desktop.Views;
 using Wpf.Ui.Controls;
@@ -48,6 +49,12 @@ internal static class PreviewRenderer
             }
             await RenderAsync(directory, theme, new Size(900, 620), 0,
                 InterfaceLanguage.TraditionalChinese, 24, audioState: "capturing");
+            await RenderAsync(directory, theme, new Size(900, 620), 2,
+                InterfaceLanguage.English, 24, providerTab: true);
+            await RenderAsync(directory, theme, new Size(1280, 850), 2,
+                InterfaceLanguage.TraditionalChinese, 24, providerTab: true);
+            await RenderAsync(directory, theme, new Size(900, 620), 2,
+                InterfaceLanguage.TraditionalChinese, 24, providerTab: true, providerModels: true);
         }
     }
 
@@ -59,21 +66,36 @@ internal static class PreviewRenderer
         InterfaceLanguage language,
         double fontSize,
         bool collapsePane = false,
-        string? audioState = null)
+        string? audioState = null,
+        bool providerTab = false,
+        bool providerModels = false)
     {
         AppSettings settings = new()
         {
             Theme = theme,
             Language = language,
             TranscriptFontSize = fontSize,
-            AudioInputDeviceId = "preview-mixer"
+            AudioInputDeviceId = "preview-mixer",
+            Providers = ProviderCatalog.CreateDefaults()
+        };
+        // Preview assignments are synthetic examples; real application defaults remain unassigned.
+        Guid previewProvider = settings.Providers.Profiles[0].Id;
+        settings = settings with
+        {
+            Providers = settings.Providers with
+            {
+                Stt = new(previewProvider, "gpt-live-transcribe"),
+                Translation = new(previewProvider, "gpt-4.1"),
+                SpeechGeneration = new(previewProvider, "gpt-realtime-2.1-mini")
+            }
         };
         PreviewSettingsStore store = new(settings);
         PreviewAudioBackend backend = new();
+        PreviewProviderCredentialStore credentials = new();
         await using AudioInputController audioInput = new(backend, settings.AudioInputDeviceId);
         await audioInput.RefreshAsync();
         MainViewModel viewModel = new(settings, store,
-            new PreviewStorageLocations(), null, audioInput);
+            new PreviewStorageLocations(), null, audioInput, credentials);
         viewModel.LoadPreviewCommand.Execute(null);
         if (audioState is not null)
         {
@@ -158,6 +180,7 @@ internal static class PreviewRenderer
             await VerifyPaneToggleAsync(navigation);
             await VerifySettingsHeaderAsync(window, navigation, viewModel);
             await VerifyAudioControlsAsync(pageProvider, viewModel, audioInput, backend, store);
+            await VerifyProviderSettingsAsync(window, pageProvider, viewModel, credentials, store);
             window.NavigateTo(requestedPage);
             settingsHeader.SetCurrentValue(NavigationViewItem.IsExpandedProperty, true);
             viewModel.Theme = theme;
@@ -171,6 +194,24 @@ internal static class PreviewRenderer
         {
             TogglePane(navigation);
             await SettleLayoutAsync(content);
+        }
+
+        if (providerTab)
+        {
+            AiSettingsPage aiPage = (AiSettingsPage)pageProvider.GetPage(typeof(AiSettingsPage))!;
+            ((TabView)aiPage.FindName("AiTabs")).SelectedIndex = 1;
+            await SettleLayoutAsync(content);
+            if (providerModels)
+            {
+                ((ComboBox)aiPage.FindName("ConfiguredModelSelector")).SelectedIndex = 0;
+                ScrollViewer editorScroller = (ScrollViewer)aiPage.FindName("ProviderEditorScroller");
+                editorScroller.ScrollToEnd();
+                await SettleLayoutAsync(content);
+                if (editorScroller.ScrollableHeight <= 0 || editorScroller.VerticalOffset <= 0)
+                {
+                    throw new InvalidOperationException("The provider editor must scroll within its tab so all model fields remain reachable.");
+                }
+            }
         }
 
         TitleBar titleBar = (TitleBar)window.FindName("ApplicationTitleBar");
@@ -187,6 +228,7 @@ internal static class PreviewRenderer
         NavigationViewItem homeItem = (NavigationViewItem)window.FindName("HomeNavigationItem");
         NavigationViewItem settingsItem = (NavigationViewItem)window.FindName("SettingsNavigationItem");
         NavigationViewItem aiItem = (NavigationViewItem)window.FindName("AiNavigationItem");
+        await WaitForNavigationLayoutAsync(content, homeItem, collapsePane);
 
         if ((!collapsePane && homeItem.ActualWidth < 180) ||
             (collapsePane && (navigation.IsPaneOpen || homeItem.ActualWidth > 60)) ||
@@ -222,6 +264,14 @@ internal static class PreviewRenderer
         {
             fileName = Path.GetFileNameWithoutExtension(fileName) + "-" + audioState + ".png";
         }
+        if (providerTab)
+        {
+            fileName = Path.GetFileNameWithoutExtension(fileName) + "-connections.png";
+        }
+        if (providerModels)
+        {
+            fileName = Path.GetFileNameWithoutExtension(fileName) + "-models.png";
+        }
         using (FileStream stream = File.Create(Path.Combine(directory, fileName)))
         {
             encoder.Save(stream);
@@ -243,6 +293,27 @@ internal static class PreviewRenderer
         }
 
         return count;
+    }
+
+    private static async Task WaitForNavigationLayoutAsync(FrameworkElement content, NavigationViewItem home, bool collapsed)
+    {
+        // Wait for actual geometry, not just an assumed animation duration on a busy machine.
+        double previous = -1;
+        int stable = 0;
+        for (int attempt = 0; attempt < 40; attempt++)
+        {
+            await Task.Delay(50);
+            content.UpdateLayout();
+            double width = home.ActualWidth;
+            bool reached = collapsed ? width <= 60 : width >= 180;
+            stable = reached && Math.Abs(width - previous) < 0.1 ? stable + 1 : 0;
+            if (stable >= 2)
+            {
+                return;
+            }
+
+            previous = width;
+        }
     }
 
     private static async Task VerifyPreferenceSelectionsAsync(
@@ -388,6 +459,95 @@ internal static class PreviewRenderer
         Wpf.Ui.Controls.Button toggle = (Wpf.Ui.Controls.Button)
             navigation.Template.FindName("PART_ToggleButton", navigation);
         toggle.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent, toggle));
+    }
+
+    private static async Task VerifyProviderSettingsAsync(MainWindow window, DesktopPageProvider pages,
+        MainViewModel viewModel, PreviewProviderCredentialStore credentials, PreviewSettingsStore store)
+    {
+        window.NavigateTo(typeof(AiSettingsPage));
+        AiSettingsPage page = (AiSettingsPage)pages.GetPage(typeof(AiSettingsPage))!;
+        ProviderSettingsViewModel providers = viewModel.Providers;
+        if (((TabView)page.FindName("AiTabs")).Style?.BasedOn is null)
+        {
+            throw new InvalidOperationException("AI tabs must use the WPF-UI base styles in both themes.");
+        }
+        ProviderConfiguration initial = providers.State;
+        ServiceAssignmentViewModel stt = providers.Assignments[0];
+        stt.SelectedProvider = stt.Providers.Single(profile => profile.Name == "Azure Speech");
+        stt.SelectedModel = stt.Models.Single(model => model.Id == "standard-realtime");
+        foreach (InterfaceLanguage language in Enum.GetValues<InterfaceLanguage>())
+        {
+            viewModel.Language = language;
+            await SettleLayoutAsync(page);
+            if (stt.SelectedProvider?.Name != "Azure Speech" || stt.SelectedModel?.Id != "standard-realtime" ||
+                providers.State.Translation != initial.Translation || providers.State.SpeechGeneration != initial.SpeechGeneration)
+            {
+                throw new InvalidOperationException("Provider assignments must remain independent and survive localization.");
+            }
+        }
+
+        ((TabView)page.FindName("AiTabs")).SelectedIndex = 1;
+        await SettleLayoutAsync(page);
+        providers.AddProviderCommand.Execute(null);
+        providers.ProfileName = "My custom provider";
+        providers.Endpoint = "https://custom.example/v1";
+        providers.NewModelId = "custom-live-stt";
+        providers.ModelStt = true;
+        providers.AddModelCommand.Execute(null);
+        Guid custom = providers.SelectedProfile!.Id;
+        stt.SelectedProvider = stt.Providers.Single(profile => profile.Id == custom);
+        stt.SelectedModel = stt.Models.Single();
+        int beforeDelete = providers.Profiles.Count;
+        await providers.DeleteProviderCommand.ExecuteAsync(null);
+        if (providers.Profiles.Count != beforeDelete || string.IsNullOrWhiteSpace(providers.Status))
+        {
+            throw new InvalidOperationException("Deleting an assigned provider must be rejected with corrective guidance.");
+        }
+
+        ComboBox selector = (ComboBox)page.FindName("ProviderSelector");
+        Wpf.Ui.Controls.PasswordBox keyEditor = (Wpf.Ui.Controls.PasswordBox)page.FindName("ApiKeyEditor");
+        keyEditor.Password = "synthetic-custom-key";
+        await providers.FlushCredentialsAsync();
+        if (!await credentials.HasKeyAsync(custom))
+        {
+            throw new InvalidOperationException("The password editor did not save the API key.");
+        }
+
+        selector.SetCurrentValue(Selector.SelectedItemProperty, providers.Profiles[0]);
+        await SettleLayoutAsync(page);
+        if (keyEditor.Password.Length != 0)
+        {
+            throw new InvalidOperationException("Changing providers must clear the secret editor without reading stored secrets.");
+        }
+
+        Guid builtIn = providers.SelectedProfile!.Id;
+        credentials.FailWrites = true;
+        keyEditor.Password = "synthetic-built-in-key";
+        await providers.FlushCredentialsAsync();
+        if (string.IsNullOrWhiteSpace(providers.Status) || await credentials.HasKeyAsync(builtIn))
+        {
+            throw new InvalidOperationException("Credential failures must be visible and must not claim a stored key.");
+        }
+
+        credentials.FailWrites = false;
+        providers.QueueApiKey("synthetic-built-in-key");
+        await providers.FlushCredentialsAsync();
+        await providers.RemoveKeyCommand.ExecuteAsync(null);
+        selector.SetCurrentValue(Selector.SelectedItemProperty, providers.Profiles.Single(profile => profile.Id == custom));
+        await SettleLayoutAsync(page);
+        stt.ClearCommand.Execute(null);
+        await providers.DeleteProviderCommand.ExecuteAsync(null);
+        await viewModel.FlushSettingsAsync();
+        if (providers.Profiles.Any(profile => profile.Id == custom) || await credentials.HasKeyAsync(custom) ||
+            System.Text.Json.JsonSerializer.Serialize(store.LastSaved).Contains("synthetic-", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Provider deletion must release its credential; settings must not contain API keys.");
+        }
+
+        stt.SelectedProvider = stt.Providers.Single(profile => profile.Id == initial.Stt!.ProviderId);
+        stt.SelectedModel = stt.Models.Single(model => model.Id == initial.Stt!.ModelId);
+        ((TabView)page.FindName("AiTabs")).SelectedIndex = 0;
+        Console.WriteLine("PASS: independent provider/model assignments, localization, custom providers, protected deletion, credential editing/failures, and secret-free settings.");
     }
 
     private static async Task VerifyPaneToggleAsync(NavigationView navigation)

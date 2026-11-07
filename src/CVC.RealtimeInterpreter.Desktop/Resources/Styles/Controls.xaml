@@ -1,6 +1,14 @@
 <ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <!-- Derived tab controls need explicit aliases to the library's native-type styles. -->
+    <Style
+        TargetType="ui:TabView"
+        BasedOn="{StaticResource {x:Type TabControl}}" />
+    <Style
+        TargetType="ui:TabViewItem"
+        BasedOn="{StaticResource {x:Type TabItem}}" />
     <!-- WPF-UI styles these standard WPF types; it does not define ui:ComboBox or ui:RadioButton. -->
     <Style
         TargetType="ComboBox"

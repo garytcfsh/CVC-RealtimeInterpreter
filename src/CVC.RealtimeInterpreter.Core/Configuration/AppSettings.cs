@@ -1,3 +1,5 @@
+using CVC.RealtimeInterpreter.Core.Providers;
+
 namespace CVC.RealtimeInterpreter.Core.Configuration;
 
 public enum ThemePreference
@@ -29,6 +31,10 @@ public sealed record AppSettings
     public double TranscriptFontSize { get; init; } = 24;
     public int StaleAudioSeconds { get; init; } = 15;
     public SpeechVoice Voice { get; init; } = SpeechVoice.Male;
+    public ProviderConfiguration? Providers
+    {
+        get; init;
+    }
     public string? AudioInputDeviceId
     {
         get; init;
@@ -55,5 +61,7 @@ public sealed record AppSettings
         {
             throw new InvalidDataException("The stale audio threshold must be between 1 and 300 seconds.");
         }
+
+        Providers?.Validate();
     }
 }
