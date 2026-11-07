@@ -9,6 +9,8 @@
                 <ui:ThemesDictionary
                     Theme="Light" />
                 <ui:ControlsDictionary />
+                <ResourceDictionary
+                    Source="Resources/Styles/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

@@ -3,6 +3,8 @@ using System.Windows;
 using System.Windows.Media;
 using CVC.RealtimeInterpreter.Core.Configuration;
 using CVC.RealtimeInterpreter.Desktop.ViewModels;
+using CVC.RealtimeInterpreter.Desktop.Views.Pages;
+using Wpf.Ui.Abstractions;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -15,11 +17,21 @@ public partial class MainWindow : FluentWindow
     private bool flushingBeforeClose;
     private bool watchingSystemTheme;
 
-    public MainWindow(MainViewModel viewModel)
+    public MainWindow(MainViewModel viewModel, INavigationViewPageProvider pageProvider)
     {
         this.viewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
+        // A collapsed child may not enter the logical tree until its group is expanded.
+        AiNavigationItem.DataContext = viewModel;
+        RootNavigation.SetPageProviderService(pageProvider);
+        RootNavigation.ApplyTemplate();
+        NavigateTo(typeof(HomePage));
+        Rect workArea = SystemParameters.WorkArea;
+        MinWidth = Math.Min(MinWidth, workArea.Width);
+        MinHeight = Math.Min(MinHeight, workArea.Height);
+        Width = Math.Min(Width, workArea.Width);
+        Height = Math.Min(Height, workArea.Height);
         ApplyTheme();
         Loaded += Window_Loaded;
         viewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -77,20 +89,46 @@ public partial class MainWindow : FluentWindow
     private void UpdateSemanticBrushes()
     {
         bool dark = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
-        Resources["WarningForeground"] = new SolidColorBrush(dark
+        Application.Current.Resources["WindowSurfaceBrush"] = new SolidColorBrush(dark
+            ? Color.FromRgb(32, 32, 32)
+            : Color.FromRgb(250, 250, 250));
+        Application.Current.Resources["WindowTextBrush"] = new SolidColorBrush(dark
+            ? Color.FromRgb(245, 245, 245)
+            : Color.FromRgb(26, 26, 26));
+        Application.Current.Resources["WarningForeground"] = new SolidColorBrush(dark
             ? Color.FromRgb(255, 191, 105)
             : Color.FromRgb(143, 77, 0));
-        Resources["CurrentSentenceBackground"] = new SolidColorBrush(dark
+        Application.Current.Resources["CurrentSentenceBackground"] = new SolidColorBrush(dark
             ? Color.FromRgb(27, 54, 82)
             : Color.FromRgb(226, 239, 254));
-        Resources["PreviewBackground"] = new SolidColorBrush(dark
+        Application.Current.Resources["PreviewBackground"] = new SolidColorBrush(dark
             ? Color.FromRgb(45, 48, 54)
             : Color.FromRgb(237, 240, 245));
     }
 
-    private void ReturnToLive_Click(object sender, RoutedEventArgs e)
+    public bool NavigateTo(Type pageType)
     {
-        TranscriptScroller.ScrollToEnd();
+        if (RootNavigation.SelectedItem?.TargetPageType == pageType)
+        {
+            return true;
+        }
+
+        return RootNavigation.Navigate(pageType);
+    }
+
+    private void Navigation_SelectionChanged(object sender, RoutedEventArgs e)
+    {
+        Type? selectedPage = RootNavigation.SelectedItem?.TargetPageType;
+        viewModel.IsSettingsPage = selectedPage == typeof(SettingsPage) ||
+            selectedPage == typeof(AiSettingsPage);
+        viewModel.IsAiSettingsPage = selectedPage == typeof(AiSettingsPage);
+
+        // A header click must be allowed to collapse its own group while opening General.
+        // Reveal the group only when navigating to its AI child.
+        if (viewModel.IsAiSettingsPage)
+        {
+            SettingsNavigationItem.SetCurrentValue(NavigationViewItem.IsExpandedProperty, true);
+        }
     }
 
     private async void Window_Closing(object? sender, CancelEventArgs e)

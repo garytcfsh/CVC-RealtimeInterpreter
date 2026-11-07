@@ -4,7 +4,7 @@ Windows 11 assistant for church interpreters, built with C#, .NET 10, and WPF.
 
 ## Current milestone
 
-The foundation provides two production projects, an English/Traditional Chinese UI shell, sentence-aligned sample text, theme selection, shared text sizing, and automatically saved preferences.
+The foundation provides two production projects, a WPF-UI Gallery-style shell with collapsible left-side navigation, English/Traditional Chinese labels, sentence-aligned sample text, theme selection, shared text sizing, and automatically saved preferences. Home is the main page. Settings itself opens General (appearance, language, text size, storage) and toggles its group; AI is its only child (voice and stale-audio preferences). All pages retain their state. Buttons use WPF-UI controls; standard types such as ComboBox, RadioButton, and Slider use the library's styles.
 
 **This is an interface preview, not a working interpretation service.** Start/Stop are intentionally disabled. Sample text is synthetic; there is no audio capture, AI request, speech playback, Scripture matching, transcript persistence/export, global shortcut, or configuration import/export yet. Selecting a voice or stale threshold currently saves a preference only. No API keys are requested or stored.
 
@@ -39,6 +39,18 @@ dotnet publish src/CVC.RealtimeInterpreter.Desktop -c Release -r win-x64 --self-
 ```
 
 Run the Desktop executable from its output or publish directory; its Core dependency is copied automatically.
+
+## Direct visual previews
+
+Generate PNGs of the actual WPF views without Computer Use or opening a visible window:
+
+```powershell
+dotnet run --project src/CVC.RealtimeInterpreter.Desktop -- --render-preview artifacts/preview
+```
+
+The renderer uses synthetic text and an in-memory settings store. It does not read or change user settings, capture audio, or call AI services. It renders Light/Dark Home, General, and AI views at 900×620 and 1280×850, Traditional Chinese examples, and collapsed-sidebar examples. An invisible WPF presentation source initializes normal control lifecycles before direct PNG rendering. Regression checks exercise the actual pane-toggle handler and language ComboBox binding: every theme and interface-language combination must preserve selections, option identities, voice, and saved preferences. Settings-header checks exercise the library's click behavior to verify both General navigation and expansion/collapse, including return from AI. Checks also cover caption controls, nested navigation, page-state retention, and visible menu labels clear of the title bar. PNGs stay under ignored `artifacts/`.
+
+These previews check client layout and visual states; actual window dragging, resizing, minimize/maximize, and close behavior still require runtime checks. Normal startup fits the initial window dimensions to the Windows work area.
 
 ## Settings
 

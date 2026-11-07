@@ -28,7 +28,7 @@ internal static class DesktopComposition
         }
 
         MainViewModel viewModel = new(settings, store, locations, loadError);
-        MainWindow window = new(viewModel);
+        MainWindow window = new(viewModel, new DesktopPageProvider(viewModel));
         application.MainWindow = window;
         window.Show();
     }

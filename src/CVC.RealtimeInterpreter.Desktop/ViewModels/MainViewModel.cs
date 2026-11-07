@@ -27,6 +27,7 @@ public partial class MainViewModel : ObservableObject
         staleAudioSeconds = settings.StaleAudioSeconds;
         voice = settings.Voice;
         settingsStatus = error ?? string.Empty;
+        RefreshOptionLabels();
     }
 
     public ObservableCollection<TranscriptSegment> Segments { get; } = [];
@@ -34,26 +35,33 @@ public partial class MainViewModel : ObservableObject
     {
         get;
     }
-    public sealed record SettingOption<T>(T Value, string Label);
-
-    public SettingOption<ThemePreference>[] ThemeOptions =>
+    public IReadOnlyList<SettingOption<ThemePreference>> ThemeOptions
+    {
+        get;
+    } =
     [
-        new(ThemePreference.System, UseChinese ? "跟隨系統" : "System"),
-        new(ThemePreference.Dark, UseChinese ? "深色" : "Dark"),
-        new(ThemePreference.Light, UseChinese ? "淺色" : "Light")
+        new(ThemePreference.System, "System"),
+        new(ThemePreference.Dark, "Dark"),
+        new(ThemePreference.Light, "Light")
     ];
 
-    public SettingOption<InterfaceLanguage>[] LanguageOptions =>
+    public IReadOnlyList<SettingOption<InterfaceLanguage>> LanguageOptions
+    {
+        get;
+    } =
     [
-        new(InterfaceLanguage.System, UseChinese ? "跟隨 Windows" : "Follow Windows"),
+        new(InterfaceLanguage.System, "Follow Windows"),
         new(InterfaceLanguage.English, "English"),
         new(InterfaceLanguage.TraditionalChinese, "繁體中文")
     ];
 
-    public SettingOption<SpeechVoice>[] VoiceOptions =>
+    public IReadOnlyList<SettingOption<SpeechVoice>> VoiceOptions
+    {
+        get;
+    } =
     [
-        new(SpeechVoice.Male, UseChinese ? "男聲" : "Male"),
-        new(SpeechVoice.Female, UseChinese ? "女聲" : "Female")
+        new(SpeechVoice.Male, "Male"),
+        new(SpeechVoice.Female, "Female")
     ];
 
     [ObservableProperty]
@@ -74,12 +82,27 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string settingsStatus;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentPageTitle))]
+    private bool isSettingsPage;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentPageTitle))]
+    private bool isAiSettingsPage;
+
+    public string CurrentPageTitle => IsAiSettingsPage
+        ? $"{SettingsTitle} / {AiLabel}"
+        : IsSettingsPage ? $"{SettingsTitle} / {GeneralLabel}" : HomeLabel;
+
     public bool UseChinese => Language == InterfaceLanguage.TraditionalChinese ||
         (Language == InterfaceLanguage.System &&
         CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.Equals("zh", StringComparison.OrdinalIgnoreCase));
 
+    public string HomeLabel => UseChinese ? "主頁" : "Home";
     public string LiveTitle => UseChinese ? "即時口譯" : "Live interpretation";
     public string SettingsTitle => UseChinese ? "設定" : "Settings";
+    public string GeneralLabel => UseChinese ? "一般" : "General";
+    public string AiLabel => "AI";
     public string PreviewNotice => UseChinese
         ? "介面預覽 — 尚未連接音訊或 AI 服務。開始功能尚未啟用。"
         : "Interface preview — audio and AI services are not connected. Start is not available yet.";
@@ -110,20 +133,32 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnLanguageChanged(InterfaceLanguage value)
     {
+        RefreshOptionLabels();
+
         foreach (string name in new[]
         {
-            nameof(UseChinese), nameof(LiveTitle), nameof(SettingsTitle), nameof(PreviewNotice),
+            nameof(UseChinese), nameof(CurrentPageTitle), nameof(HomeLabel), nameof(LiveTitle), nameof(SettingsTitle), nameof(PreviewNotice),
             nameof(PreviewButton), nameof(ClearButton), nameof(ReturnToLiveLabel), nameof(StartLabel),
             nameof(StopLabel), nameof(ModeLabel), nameof(StageOneLabel), nameof(StageTwoLabel),
             nameof(ThemeLabel), nameof(LanguageLabel), nameof(TextSizeLabel), nameof(VoiceLabel),
             nameof(StaleLabel), nameof(StorageLabel), nameof(ProviderNotice), nameof(SaveNotice), nameof(EmptyNotice),
-            nameof(ThemeOptions), nameof(LanguageOptions), nameof(VoiceOptions)
+            nameof(GeneralLabel), nameof(AiLabel)
         })
         {
             OnPropertyChanged(name);
         }
 
         UpdateSettings();
+    }
+
+    private void RefreshOptionLabels()
+    {
+        ThemeOptions[0].Label = UseChinese ? "跟隨系統" : "System";
+        ThemeOptions[1].Label = UseChinese ? "深色" : "Dark";
+        ThemeOptions[2].Label = UseChinese ? "淺色" : "Light";
+        LanguageOptions[0].Label = UseChinese ? "跟隨 Windows" : "Follow Windows";
+        VoiceOptions[0].Label = UseChinese ? "男聲" : "Male";
+        VoiceOptions[1].Label = UseChinese ? "女聲" : "Female";
     }
 
     partial void OnVoiceChanged(SpeechVoice value)

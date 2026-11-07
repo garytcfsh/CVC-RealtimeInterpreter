@@ -46,6 +46,18 @@ docs/
 
 Organize each feature around its own contracts, models, and implementation. Avoid generic `Helpers` or `Managers` folders that accumulate unrelated behavior. Keep modules within the two production projects until a concrete need justifies more assemblies.
 
+## Desktop Shell and Control Styling
+
+Follow the local WPF-UI Gallery's navigation-shell concept: a FluentWindow title bar, collapsible left-side NavigationView, and independently constructed Home, General settings, and AI settings pages. Home is a main menu item. Settings is both a navigable footer item opening General and an expandable group with AI as its only child; do not duplicate General as a child. Clicking the Settings label uses the library's native expansion toggle and page navigation. Selecting AI reveals its parent, but selecting General must not force the group open and prevent a header click from collapsing it. The hamburger control expands/collapses the pane. Labels follow the selected interface language, including 主頁 and 設定.
+
+Desktop composition supplies a page provider with retained page instances. Changing pages must preserve the shared transcript and preferences. Window chrome, navigation, and theme integration stay in the shell; transcript scrolling belongs to Home, and preference controls belong to Settings.
+
+General contains theme, language, shared transcript text size, and storage information. AI contains the existing voice and stale-audio preferences, with provider integration clearly marked pending. Preserve option-list and option-object identities during localization: update observable display labels in place so changing languages cannot clear a selector or overwrite an unrelated preference.
+
+Use WPF-UI controls where provided, including `ui:Button`, `ui:TextBlock`, `CardControl`, `InfoBar`, and `NumberBox`. Where the library styles an existing WPF type, such as ComboBox, RadioButton, Slider, or ScrollViewer, retain that type with WPF-UI's styles. Custom styles must preserve the library base style instead of replacing its templates with native defaults.
+
+Keep semantic theme brushes at application scope so pages hosted by the navigation frame resolve the same colors as the shell. Direct previews must initialize normal WPF load/unload behavior and allow pane animations to settle before rendering.
+
 ## Build Output and Publishing
 
 Centralize generated files under the repository's `artifacts/` directory, while keeping build outputs separate by project, configuration, target framework, and runtime where applicable.

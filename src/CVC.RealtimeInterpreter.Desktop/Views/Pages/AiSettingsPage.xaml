@@ -1,0 +1,49 @@
+<Page
+    x:Class="CVC.RealtimeInterpreter.Desktop.Views.Pages.AiSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Background="Transparent"
+    Foreground="{DynamicResource WindowTextBrush}">
+    <ScrollViewer
+        VerticalScrollBarVisibility="Auto"
+        HorizontalScrollBarVisibility="Disabled"
+        Style="{StaticResource UiScrollViewer}">
+        <StackPanel
+            Margin="0,0,8,16">
+            <ui:InfoBar
+                IsOpen="True"
+                IsClosable="False"
+                Severity="Informational"
+                Message="{Binding ProviderNotice}"
+                Margin="0,0,0,20" />
+            <ui:TextBlock
+                Text="{Binding SaveNotice}"
+                TextWrapping="Wrap"
+                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                Margin="0,0,0,20" />
+            <ui:CardControl
+                Header="{Binding VoiceLabel}"
+                Icon="{ui:SymbolIcon Speaker224}"
+                Margin="0,0,0,8">
+                <ComboBox
+                    x:Name="VoiceSelector"
+                    ItemsSource="{Binding VoiceOptions}"
+                    DisplayMemberPath="Label"
+                    SelectedValuePath="Value"
+                    SelectedValue="{Binding Voice}" />
+            </ui:CardControl>
+            <ui:CardControl
+                Header="{Binding StaleLabel}"
+                Icon="{ui:SymbolIcon Timer24}"
+                Margin="0,0,0,8">
+                <ui:NumberBox
+                    Width="190"
+                    HorizontalAlignment="Right"
+                    Minimum="1"
+                    Maximum="300"
+                    Value="{Binding StaleAudioSeconds}" />
+            </ui:CardControl>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
