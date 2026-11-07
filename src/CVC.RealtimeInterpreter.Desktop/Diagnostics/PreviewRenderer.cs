@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using CVC.RealtimeInterpreter.Core.Configuration;
+using CVC.RealtimeInterpreter.Core.Audio;
 using CVC.RealtimeInterpreter.Desktop.ViewModels;
 using CVC.RealtimeInterpreter.Desktop.Views;
 using Wpf.Ui.Controls;
@@ -40,6 +41,13 @@ internal static class PreviewRenderer
                 InterfaceLanguage.TraditionalChinese, 24);
             await RenderAsync(directory, theme, new Size(900, 620), 0,
                 InterfaceLanguage.English, 24, collapsePane: true);
+            foreach (string state in new[] { "capturing", "silence", "no-packets", "disconnected", "denied" })
+            {
+                await RenderAsync(directory, theme, new Size(1280, 850), 0,
+                    InterfaceLanguage.English, 24, audioState: state);
+            }
+            await RenderAsync(directory, theme, new Size(900, 620), 0,
+                InterfaceLanguage.TraditionalChinese, 24, audioState: "capturing");
         }
     }
 
@@ -50,18 +58,48 @@ internal static class PreviewRenderer
         int page,
         InterfaceLanguage language,
         double fontSize,
-        bool collapsePane = false)
+        bool collapsePane = false,
+        string? audioState = null)
     {
         AppSettings settings = new()
         {
             Theme = theme,
             Language = language,
-            TranscriptFontSize = fontSize
+            TranscriptFontSize = fontSize,
+            AudioInputDeviceId = "preview-mixer"
         };
         PreviewSettingsStore store = new(settings);
+        PreviewAudioBackend backend = new();
+        await using AudioInputController audioInput = new(backend, settings.AudioInputDeviceId);
+        await audioInput.RefreshAsync();
         MainViewModel viewModel = new(settings, store,
-            new PreviewStorageLocations(), null);
+            new PreviewStorageLocations(), null, audioInput);
         viewModel.LoadPreviewCommand.Execute(null);
+        if (audioState is not null)
+        {
+            if (audioState == "silence")
+            {
+                backend.SignalPeak = 0;
+            }
+            else if (audioState == "no-packets")
+            {
+                backend.SignalPeak = null;
+            }
+
+            if (audioState == "denied")
+            {
+                backend.StartFailure = AudioInputFailure.AccessDenied;
+            }
+
+            await viewModel.StartAudioCommand.ExecuteAsync(null);
+            if (audioState == "disconnected")
+            {
+                backend.Devices.RemoveAll(device => device.Id == settings.AudioInputDeviceId);
+                await audioInput.RefreshAsync();
+            }
+
+            await Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+        }
         DesktopPageProvider pageProvider = new(viewModel);
         MainWindow window = new(viewModel, pageProvider);
         Type requestedPage = page switch
@@ -79,7 +117,7 @@ internal static class PreviewRenderer
 
         if (!window.NavigateTo(page == 0 ? typeof(SettingsPage) : typeof(HomePage)) ||
             !window.NavigateTo(requestedPage) ||
-            viewModel.Segments.Count != 3 || viewModel.IsSettingsPage != (page != 0) ||
+            viewModel.Segments.Count != (audioState is null ? 3 : 0) || viewModel.IsSettingsPage != (page != 0) ||
             viewModel.IsAiSettingsPage != (page == 2))
         {
             throw new InvalidOperationException("Navigation did not preserve page/session state.");
@@ -119,6 +157,7 @@ internal static class PreviewRenderer
             await VerifyPreferenceSelectionsAsync(window, pageProvider, viewModel, store);
             await VerifyPaneToggleAsync(navigation);
             await VerifySettingsHeaderAsync(window, navigation, viewModel);
+            await VerifyAudioControlsAsync(pageProvider, viewModel, audioInput, backend, store);
             window.NavigateTo(requestedPage);
             settingsHeader.SetCurrentValue(NavigationViewItem.IsExpandedProperty, true);
             viewModel.Theme = theme;
@@ -179,6 +218,10 @@ internal static class PreviewRenderer
         string fileName = $"{theme.ToString().ToLowerInvariant()}-{pageName}-" +
             $"{(int)size.Width}x{(int)size.Height}-{language}-{fontSize:0}" +
             (collapsePane ? "-collapsed" : string.Empty) + ".png";
+        if (audioState is not null)
+        {
+            fileName = Path.GetFileNameWithoutExtension(fileName) + "-" + audioState + ".png";
+        }
         using (FileStream stream = File.Create(Path.Combine(directory, fileName)))
         {
             encoder.Save(stream);
@@ -213,6 +256,8 @@ internal static class PreviewRenderer
         ComboBox themeSelector = (ComboBox)general.FindName("ThemeSelector");
         ComboBox languageSelector = (ComboBox)general.FindName("LanguageSelector");
         ComboBox voiceSelector = (ComboBox)ai.FindName("VoiceSelector");
+        ComboBox inputSelector = (ComboBox)general.FindName("AudioInputSelector");
+        object originalInput = inputSelector.SelectedItem;
         object originalOptions = viewModel.ThemeOptions;
         object originalFirstOption = viewModel.ThemeOptions[0];
         viewModel.Voice = SpeechVoice.Female;
@@ -232,6 +277,8 @@ internal static class PreviewRenderer
                     !ReferenceEquals(originalFirstOption, viewModel.ThemeOptions[0]) ||
                     !Equals(themeSelector.SelectedValue, theme) ||
                     !Equals(languageSelector.SelectedValue, language) ||
+                    !ReferenceEquals(originalInput, inputSelector.SelectedItem) ||
+                    store.LastSaved.AudioInputDeviceId != "preview-mixer" ||
                     viewModel.Theme != theme || viewModel.Language != language ||
                     store.LastSaved.Theme != theme || store.LastSaved.Language != language)
                 {
@@ -251,6 +298,89 @@ internal static class PreviewRenderer
         }
 
         Console.WriteLine("PASS: language changes preserve all theme options, selection, voice, and saved preferences.");
+    }
+
+    private static async Task VerifyAudioControlsAsync(
+        DesktopPageProvider pages,
+        MainViewModel viewModel,
+        AudioInputController controller,
+        PreviewAudioBackend backend,
+        PreviewSettingsStore store)
+    {
+        SettingsPage general = (SettingsPage)pages.GetPage(typeof(SettingsPage))!;
+        ComboBox inputSelector = (ComboBox)general.FindName("AudioInputSelector");
+        await viewModel.StartAudioCommand.ExecuteAsync(null);
+        await SettleLayoutAsync(general);
+        if (!viewModel.StopAudioCommand.CanExecute(null) || viewModel.StartAudioCommand.CanExecute(null) ||
+            viewModel.LoadPreviewCommand.CanExecute(null) || viewModel.Segments.Count != 0 || viewModel.InputLevel <= 0)
+        {
+            throw new InvalidOperationException("Audio controls did not enter capture state or clear sample text.");
+        }
+
+        backend.SignalPeak = 0;
+        await SettleLayoutAsync(general);
+        await SettleLayoutAsync(general);
+        if (viewModel.InputLevel != 0 || !controller.ReadSignalLevel().IsReceivingAudio)
+        {
+            throw new InvalidOperationException("Silent packets must leave an empty meter while still indicating received audio.");
+        }
+
+        backend.SignalPeak = null;
+        await Task.Delay(TimeSpan.FromMilliseconds(1250));
+        await SettleLayoutAsync(general);
+        if (viewModel.InputLevel != 0 || controller.ReadSignalLevel().IsReceivingAudio)
+        {
+            throw new InvalidOperationException("Missing packets must expire the receiving indicator and meter.");
+        }
+
+        backend.SignalPeak = 0.5;
+        await SettleLayoutAsync(general);
+        if (viewModel.InputLevel <= 0)
+        {
+            throw new InvalidOperationException("The meter must recover when audio packets resume.");
+        }
+
+        inputSelector.SetCurrentValue(Selector.SelectedItemProperty,
+            viewModel.InputDevices.Single(device => device.Id == "preview-other"));
+        await SettleLayoutAsync(general);
+        await viewModel.FlushSettingsAsync();
+        if (controller.Snapshot.State != AudioInputState.Ready || store.LastSaved.AudioInputDeviceId != "preview-other" ||
+            viewModel.InputLevel != 0)
+        {
+            throw new InvalidOperationException("Changing inputs must stop capture and save the explicitly selected endpoint.");
+        }
+
+        await viewModel.StartAudioCommand.ExecuteAsync(null);
+        backend.Devices.RemoveAll(device => device.Id == "preview-other");
+        await controller.RefreshAsync();
+        await SettleLayoutAsync(general);
+        if (viewModel.StartAudioCommand.CanExecute(null) || viewModel.StopAudioCommand.CanExecute(null) ||
+            viewModel.SelectedInputDevice?.Id != "preview-other")
+        {
+            throw new InvalidOperationException("An unavailable device must stay selected without enabling capture.");
+        }
+
+        backend.Devices.Add(new("preview-other", "Sample alternate input"));
+        await controller.RefreshAsync();
+        await SettleLayoutAsync(general);
+        if (!viewModel.StartAudioCommand.CanExecute(null) || viewModel.StopAudioCommand.CanExecute(null))
+        {
+            throw new InvalidOperationException("Device reconnection must require an explicit Start.");
+        }
+
+        inputSelector.SetCurrentValue(Selector.SelectedItemProperty,
+            viewModel.InputDevices.Single(device => device.Id == "preview-mixer"));
+        await SettleLayoutAsync(general);
+        await viewModel.StartAudioCommand.ExecuteAsync(null);
+        await viewModel.StopAudioCommand.ExecuteAsync(null);
+        await SettleLayoutAsync(general);
+        if (viewModel.InputLevel != 0)
+        {
+            throw new InvalidOperationException("Stop must clear the input meter.");
+        }
+
+        viewModel.LoadPreviewCommand.Execute(null);
+        Console.WriteLine("PASS: fake audio verifies controls, device loss, meter signal/silence/no-packets, and clearing on Stop/input changes.");
     }
 
     private static void TogglePane(NavigationView navigation)

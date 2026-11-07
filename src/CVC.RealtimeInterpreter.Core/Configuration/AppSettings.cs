@@ -29,6 +29,10 @@ public sealed record AppSettings
     public double TranscriptFontSize { get; init; } = 24;
     public int StaleAudioSeconds { get; init; } = 15;
     public SpeechVoice Voice { get; init; } = SpeechVoice.Male;
+    public string? AudioInputDeviceId
+    {
+        get; init;
+    }
 
     public void Validate()
     {

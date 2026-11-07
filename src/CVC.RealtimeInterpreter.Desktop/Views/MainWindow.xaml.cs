@@ -152,7 +152,7 @@ public partial class MainWindow : FluentWindow
         }
 
         flushingBeforeClose = true;
-        await viewModel.FlushSettingsAsync();
+        await viewModel.ShutdownAsync();
         closingAfterFlush = true;
         await Dispatcher.InvokeAsync(Close);
     }

@@ -10,7 +10,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        if (e.Args.Length > 0 && e.Args[0] == "--render-preview")
+        if (e.Args.Length > 0 && e.Args[0] is "--render-preview" or "--inspect-audio-inputs")
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
@@ -22,7 +22,14 @@ public partial class App : Application
 
             try
             {
-                await PreviewRenderer.ExportAsync(e.Args[1]);
+                if (e.Args[0] == "--render-preview")
+                {
+                    await PreviewRenderer.ExportAsync(e.Args[1]);
+                }
+                else
+                {
+                    await AudioInputDiagnostics.ExportDevicesAsync(e.Args[1]);
+                }
                 Shutdown(0);
             }
             catch (Exception exception)

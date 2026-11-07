@@ -33,19 +33,58 @@
                     Margin="0,0,16,0" />
                 <RadioButton
                     Content="{Binding StageOneLabel}"
+                    IsChecked="True"
+                    IsEnabled="False"
                     GroupName="SessionMode" />
                 <RadioButton
                     Content="{Binding StageTwoLabel}"
+                    IsEnabled="False"
                     GroupName="SessionMode" />
                 <ui:Button
                     Content="{Binding StartLabel}"
                     Appearance="Primary"
-                    IsEnabled="False"
+                    Command="{Binding StartAudioCommand}"
                     Margin="0,0,8,0" />
                 <ui:Button
                     Content="{Binding StopLabel}"
-                    IsEnabled="False" />
+                    Command="{Binding StopAudioCommand}" />
             </WrapPanel>
+            <ui:TextBlock
+                Text="{Binding AudioStatus}"
+                TextWrapping="Wrap"
+                Margin="0,0,0,12" />
+            <Border
+                Background="{DynamicResource PreviewBackground}"
+                CornerRadius="6"
+                Padding="12"
+                Margin="0,0,0,12">
+                <StackPanel>
+                    <Grid
+                        Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition
+                                Width="Auto" />
+                            <ColumnDefinition
+                                Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ui:TextBlock
+                            Text="{Binding InputLevelLabel}"
+                            Margin="0,0,16,0" />
+                        <ui:TextBlock
+                            Grid.Column="1"
+                            Text="{Binding InputSignalStatus}"
+                            TextWrapping="Wrap"
+                            HorizontalAlignment="Right" />
+                    </Grid>
+                    <ProgressBar
+                        x:Name="InputLevelMeter"
+                        Minimum="0"
+                        Maximum="100"
+                        Value="{Binding InputLevel}"
+                        IsIndeterminate="False"
+                        Height="8" />
+                </StackPanel>
+            </Border>
             <WrapPanel
                 Margin="0,0,0,20">
                 <ui:Button

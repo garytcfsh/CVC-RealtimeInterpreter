@@ -29,7 +29,8 @@ public sealed class SettingsStoreTests : IDisposable
             Language = InterfaceLanguage.TraditionalChinese,
             TranscriptFontSize = 32,
             StaleAudioSeconds = 25,
-            Voice = SpeechVoice.Female
+            Voice = SpeechVoice.Female,
+            AudioInputDeviceId = "mixer-endpoint"
         };
 
         await store.SaveAsync(expected);
@@ -48,6 +49,18 @@ public sealed class SettingsStoreTests : IDisposable
             () => store.SaveAsync(new AppSettings { TranscriptFontSize = double.NaN }));
 
         Assert.Equal(new AppSettings(), await store.LoadAsync());
+    }
+
+    [Fact]
+    public async Task Loads_existing_settings_without_an_audio_device_preference()
+    {
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(SettingsPath, "{\"SchemaVersion\":1,\"Theme\":\"Dark\"}");
+
+        AppSettings result = await new JsonSettingsStore(SettingsPath).LoadAsync();
+
+        Assert.Equal(ThemePreference.Dark, result.Theme);
+        Assert.Null(result.AudioInputDeviceId);
     }
 
     [Fact]

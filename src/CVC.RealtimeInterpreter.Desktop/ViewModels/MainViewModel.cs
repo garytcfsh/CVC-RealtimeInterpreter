@@ -4,6 +4,7 @@ using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CVC.RealtimeInterpreter.Core.Configuration;
+using CVC.RealtimeInterpreter.Core.Audio;
 using CVC.RealtimeInterpreter.Core.Transcripts;
 
 namespace CVC.RealtimeInterpreter.Desktop.ViewModels;
@@ -16,7 +17,8 @@ public partial class MainViewModel : ObservableObject
     private bool saveInProgress;
     private bool savePending;
 
-    public MainViewModel(AppSettings settings, ISettingsStore settingsStore, IStorageLocations locations, string? error)
+    public MainViewModel(AppSettings settings, ISettingsStore settingsStore, IStorageLocations locations, string? error,
+        AudioInputController? audioInput = null)
     {
         this.settings = settings;
         this.settingsStore = settingsStore;
@@ -28,6 +30,7 @@ public partial class MainViewModel : ObservableObject
         voice = settings.Voice;
         settingsStatus = error ?? string.Empty;
         RefreshOptionLabels();
+        InitializeAudio(audioInput);
     }
 
     public ObservableCollection<TranscriptSegment> Segments { get; } = [];
@@ -104,8 +107,8 @@ public partial class MainViewModel : ObservableObject
     public string GeneralLabel => UseChinese ? "一般" : "General";
     public string AiLabel => "AI";
     public string PreviewNotice => UseChinese
-        ? "介面預覽 — 尚未連接音訊或 AI 服務。開始功能尚未啟用。"
-        : "Interface preview — audio and AI services are not connected. Start is not available yet.";
+        ? "目前僅支援音訊擷取，尚未連接轉錄與翻譯。音訊不會儲存或上傳。"
+        : "Audio capture only — transcription and translation are not connected yet. Audio is never saved or uploaded.";
     public string PreviewButton => UseChinese ? "載入範例文字" : "Load sample text";
     public string ClearButton => UseChinese ? "清除範例" : "Clear sample";
     public string ReturnToLiveLabel => UseChinese ? "返回最新句子" : "Return to live";
@@ -121,10 +124,12 @@ public partial class MainViewModel : ObservableObject
     public string StaleLabel => UseChinese ? "過期語音門檻（秒）" : "Stale audio threshold (seconds)";
     public string StorageLabel => UseChinese ? "資料儲存位置" : "Data location";
     public string ProviderNotice => UseChinese
-        ? "AI 供應商、音訊裝置與全域快捷鍵將於後續整合。此處不會儲存 API 金鑰。"
-        : "Provider, audio devices, and global shortcut integration are pending. No API key is stored here.";
+        ? "AI 供應商、音訊輸出與全域快捷鍵將於後續整合。此處不會儲存 API 金鑰。"
+        : "Provider, audio output, and global shortcut integration are pending. No API key is stored here.";
     public string SaveNotice => UseChinese ? "設定會自動儲存。" : "Settings save automatically.";
-    public string EmptyNotice => UseChinese ? "載入範例以檢視雙語排列。" : "Load sample text to preview the bilingual layout.";
+    public string EmptyNotice => audioSnapshot.State == AudioInputState.Capturing
+        ? UseChinese ? "音訊擷取中；轉錄功能尚未連接。" : "Audio capture is active; transcription is not connected yet."
+        : UseChinese ? "載入範例以檢視雙語排列。" : "Load sample text to preview the bilingual layout.";
 
     partial void OnThemeChanged(ThemePreference value)
     {
@@ -134,6 +139,7 @@ public partial class MainViewModel : ObservableObject
     partial void OnLanguageChanged(InterfaceLanguage value)
     {
         RefreshOptionLabels();
+        RefreshAudioLabels();
 
         foreach (string name in new[]
         {
@@ -183,6 +189,7 @@ public partial class MainViewModel : ObservableObject
             Theme = Theme,
             Language = Language,
             Voice = Voice,
+            AudioInputDeviceId = audioSnapshot.SelectedDeviceId,
             TranscriptFontSize = TranscriptFontSize,
             StaleAudioSeconds = StaleAudioSeconds
         };
@@ -231,7 +238,7 @@ public partial class MainViewModel : ObservableObject
         saveGate.Release();
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanLoadPreview))]
     private void LoadPreview()
     {
         Segments.Clear();

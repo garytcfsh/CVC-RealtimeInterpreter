@@ -58,6 +58,45 @@
             </ui:CardControl>
             <ui:Card
                 Padding="20"
+                Margin="0,0,0,8">
+                <StackPanel>
+                    <ui:TextBlock
+                        Text="{Binding InputLabel}"
+                        FontTypography="BodyStrong" />
+                    <Grid
+                        Margin="0,12,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition
+                                Width="*" />
+                            <ColumnDefinition
+                                Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox
+                            x:Name="AudioInputSelector"
+                            MinWidth="0"
+                            HorizontalAlignment="Stretch"
+                            ItemsSource="{Binding InputDevices}"
+                            DisplayMemberPath="Name"
+                            SelectedItem="{Binding SelectedInputDevice}"
+                            IsEnabled="{Binding CanChangeInput}"
+                            Margin="0,0,12,0" />
+                        <ui:Button
+                            Grid.Column="1"
+                            Content="{Binding RefreshInputsLabel}"
+                            Command="{Binding RefreshInputsCommand}" />
+                    </Grid>
+                    <ui:TextBlock
+                        Text="{Binding AudioStatus}"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,8" />
+                    <ui:TextBlock
+                        Text="{Binding InputHelp}"
+                        TextWrapping="Wrap"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </ui:Card>
+            <ui:Card
+                Padding="20"
                 Margin="0,0,0,16">
                 <StackPanel>
                     <ui:TextBlock

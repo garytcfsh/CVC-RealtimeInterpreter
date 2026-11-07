@@ -2,6 +2,7 @@ using System.IO;
 using System.Text.Json;
 using System.Windows;
 using CVC.RealtimeInterpreter.Core.Configuration;
+using CVC.RealtimeInterpreter.Core.Audio;
 using CVC.RealtimeInterpreter.Core.Platforms.Windows;
 using CVC.RealtimeInterpreter.Desktop.ViewModels;
 using CVC.RealtimeInterpreter.Desktop.Views;
@@ -27,9 +28,11 @@ internal static class DesktopComposition
                 exception.Message;
         }
 
-        MainViewModel viewModel = new(settings, store, locations, loadError);
+        AudioInputController audioInput = new(new WindowsAudioInputBackend(), settings.AudioInputDeviceId);
+        MainViewModel viewModel = new(settings, store, locations, loadError, audioInput);
         MainWindow window = new(viewModel, new DesktopPageProvider(viewModel));
         application.MainWindow = window;
         window.Show();
+        await audioInput.RefreshAsync();
     }
 }

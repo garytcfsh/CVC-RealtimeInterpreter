@@ -52,7 +52,7 @@ Follow the local WPF-UI Gallery's navigation-shell concept: a FluentWindow title
 
 Desktop composition supplies a page provider with retained page instances. Changing pages must preserve the shared transcript and preferences. Window chrome, navigation, and theme integration stay in the shell; transcript scrolling belongs to Home, and preference controls belong to Settings.
 
-General contains theme, language, shared transcript text size, and storage information. AI contains the existing voice and stale-audio preferences, with provider integration clearly marked pending. Preserve option-list and option-object identities during localization: update observable display labels in place so changing languages cannot clear a selector or overwrite an unrelated preference.
+General contains theme, language, shared transcript text size, audio input selection/refresh, and storage information. AI contains the existing voice and stale-audio preferences, with provider integration clearly marked pending. Preserve option-list and option-object identities during localization: update observable display labels in place so changing languages cannot clear a selector or overwrite an unrelated preference. Audio options are matched by endpoint ID; suppress transient ComboBox nulls while rebuilding device lists and retain an unavailable placeholder for a missing remembered endpoint.
 
 Use WPF-UI controls where provided, including `ui:Button`, `ui:TextBlock`, `CardControl`, `InfoBar`, and `NumberBox`. Where the library styles an existing WPF type, such as ComboBox, RadioButton, Slider, or ScrollViewer, retain that type with WPF-UI's styles. Custom styles must preserve the library base style instead of replacing its templates with native defaults.
 
@@ -85,6 +85,18 @@ Follow the reference repository's shared-library/platform concept without copyin
 - Resolve ProgramData through the Windows platform implementation rather than embedding a Windows path in portable logic.
 
 The portable Core target must build independently of the desktop UI. Future platforms can reuse shared processing, but will still require their own UI and platform adapters. Browser capture remains a feasibility item.
+
+## Implemented Audio Input Boundary
+
+`AudioInputController` owns selected-endpoint capture, serializes lifecycle operations, and publishes framework-independent snapshots. `IAudioInputBackend` supplies device discovery/change notifications and creates `IAudioCaptureSource` instances. Desktop dispatches state updates onto the UI thread; the controller has no WPF dependency.
+
+`Platforms/Windows/WindowsAudioInputBackend` uses pinned NAudio.Wasapi 3.3.0 and shared-mode WASAPI capture. Its package is referenced only by the Windows target. Endpoint enumeration, device activation, and capture startup run off the UI thread. Native notification callbacks schedule refresh work without enumerating or disposing audio resources on the callback thread. The source owns its recorder and endpoint, and asynchronous disposal releases both on Stop/close.
+
+The selected endpoint ID is an optional setting, compatible with existing schema-1 files. No default input is selected automatically. A missing endpoint remains selected and unavailable. Reconnection refreshes availability but does not start capture; selecting a replacement stops the previous input and requires Start. Stop rejects late packets and prevents an in-flight device open from starting capture afterward.
+
+Audio callbacks expose short-lived spans and explicit PCM/float format metadata. `AudioSignalMeter` computes peak magnitude without retaining sample buffers, supporting little-endian PCM 8/16/24/32-bit and float 32/64-bit. Desktop polls measurements at 10 Hz and displays a logarithmic level bar, separately indicating packet arrival, silence, and absent packets. Arrival expires after one second. Each source has its own meter so Stop, device loss/replacement, and late callbacks cannot leave a stale reading. Invalid formats/nonfinite samples show an unavailable level rather than claiming silence.
+
+This capture-only milestone has no audio queue, recording, upload, or AI calls; packets are discarded after measurement. Home clearly identifies this limitation, and starting capture clears synthetic preview text. Future provider integration must bridge callbacks to bounded processing without blocking capture. Real mixer/driver validation remains necessary; deterministic diagnostics use fake devices and do not open microphones.
 
 ## Replaceable Service Boundaries
 

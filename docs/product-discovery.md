@@ -1,6 +1,6 @@
 # Product Discovery: CVC-RealtimeInterpreter
 
-Last updated: 2026-11-02. These are discovery notes, not authorization to implement application code. Latest confirmed choices supersede earlier alternatives. Continue discussion in English even when the user writes in Chinese.
+Last updated: 2026-11-07. These are discovery notes; implementation authorization is recorded separately in the conversation. Latest confirmed choices supersede earlier alternatives. Continue discussion in English even when the user writes in Chinese.
 
 ## Product Goal and Users
 
@@ -37,6 +37,7 @@ The final goal is Mandarin audio input and English audio output, with a bilingua
 - Allow device changes during sessions without ending the record.
 - Output disconnection mutes AI audio; require explicit **Resume AI** after selecting a replacement.
 - No dedicated audio-test feature.
+- Show a live input-level meter on Home and distinguish arriving audio packets, received silence, and no audio received. Device loss indicates unavailable input. This measures the app's captured samples without recording or uploading audio; it does not require a separate test mode.
 
 ### Live Display and Quality
 
